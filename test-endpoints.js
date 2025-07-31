@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-const BASE_URL = "http://localhost:3001";
+const BASE_URL = "https://marketing-backend-mklg.onrender.com";
 
 async function testHealthEndpoint() {
   console.log("🔍 Testing Health Endpoint...");
