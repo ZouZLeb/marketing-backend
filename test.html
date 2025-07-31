@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Test Page</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      input,
+      textarea {
+        width: 100%;
+        padding: 8px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      .result {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px;
+        margin-top: 10px;
+        white-space: pre-wrap;
+        font-family: monospace;
+      }
+      .success {
+        border-left: 4px solid #28a745;
+      }
+      .error {
+        border-left: 4px solid #dc3545;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🚀 API Test Page</h1>
+
+    <div class="container">
+      <h2>Health Check</h2>
+      <button onclick="testHealth()">Test Health Endpoint</button>
+      <div id="healthResult" class="result"></div>
+    </div>
+
+    <div class="container">
+      <h2>Chat Endpoint</h2>
+      <textarea
+        id="messageInput"
+        placeholder="Enter your message here..."
+        rows="3"
+      ></textarea>
+      <button onclick="testChat()">Send Message</button>
+      <div id="chatResult" class="result"></div>
+    </div>
+
+    <div class="container">
+      <h2>Quick Tests</h2>
+      <button onclick="testEmptyMessage()">Test Empty Message</button>
+      <button onclick="testLongMessage()">Test Long Message</button>
+      <button onclick="testInvalidEndpoint()">Test 404</button>
+      <div id="quickTestResult" class="result"></div>
+    </div>
+
+    <script>
+      const BASE_URL = "http://localhost:3001";
+
+      function displayResult(elementId, data, isSuccess = true) {
+        const element = document.getElementById(elementId);
+        element.textContent = JSON.stringify(data, null, 2);
+        element.className = `result ${isSuccess ? "success" : "error"}`;
+      }
+
+      async function testHealth() {
+        try {
+          const response = await fetch(`${BASE_URL}/health`);
+          const data = await response.json();
+          displayResult(
+            "healthResult",
+            {
+              status: response.status,
+              data: data,
+            },
+            response.ok
+          );
+        } catch (error) {
+          displayResult("healthResult", { error: error.message }, false);
+        }
+      }
+
+      async function testChat() {
+        const message = document.getElementById("messageInput").value;
+        if (!message.trim()) {
+          displayResult(
+            "chatResult",
+            { error: "Please enter a message" },
+            false
+          );
+          return;
+        }
+
+        try {
+          const response = await fetch(`${BASE_URL}/api/chat`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message,
+              sessionId: Date.now().toString(),
+            }),
+          });
+          const data = await response.json();
+          displayResult(
+            "chatResult",
+            {
+              status: response.status,
+              data: data,
+            },
+            response.ok
+          );
+        } catch (error) {
+          displayResult("chatResult", { error: error.message }, false);
+        }
+      }
+
+      async function testEmptyMessage() {
+        try {
+          const response = await fetch(`${BASE_URL}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          const data = await response.json();
+          displayResult(
+            "quickTestResult",
+            {
+              test: "Empty Message",
+              status: response.status,
+              data: data,
+            },
+            response.status === 400
+          );
+        } catch (error) {
+          displayResult("quickTestResult", { error: error.message }, false);
+        }
+      }
+
+      async function testLongMessage() {
+        const longMessage = "A".repeat(1001);
+        try {
+          const response = await fetch(`${BASE_URL}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: longMessage }),
+          });
+          const data = await response.json();
+          displayResult(
+            "quickTestResult",
+            {
+              test: "Long Message",
+              status: response.status,
+              data: data,
+            },
+            response.status === 400
+          );
+        } catch (error) {
+          displayResult("quickTestResult", { error: error.message }, false);
+        }
+      }
+
+      async function testInvalidEndpoint() {
+        try {
+          const response = await fetch(`${BASE_URL}/nonexistent`);
+          const data = await response.json();
+          displayResult(
+            "quickTestResult",
+            {
+              test: "404 Endpoint",
+              status: response.status,
+              data: data,
+            },
+            response.status === 404
+          );
+        } catch (error) {
+          displayResult("quickTestResult", { error: error.message }, false);
+        }
+      }
+    </script>
+  </body>
+</html>

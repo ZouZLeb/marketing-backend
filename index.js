@@ -27,7 +27,7 @@ app.get("/health", (req, res) => {
 
 // Main chat endpoint
 app.post("/api/chat", async (req, res) => {
-  const { message } = req.body;
+  const { message, sessionId } = req.body;
 
   // Validate input
   if (!message || typeof message !== "string") {
@@ -41,6 +41,9 @@ app.post("/api/chat", async (req, res) => {
       error: "Message too long (max 1000 characters)",
     });
   }
+
+  // Generate sessionId if not provided
+  const finalSessionId = sessionId || Date.now().toString();
 
   try {
     console.log(`Processing message: ${message.substring(0, 50)}...`);
@@ -58,9 +61,19 @@ app.post("/api/chat", async (req, res) => {
       body: JSON.stringify({
         message,
         timestamp: new Date().toISOString(),
+        sessionId: finalSessionId,
+        requestId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         proxy: true,
       }),
     });
+
+    console.log(
+      `Webhook response status: ${response.status} ${response.statusText}`
+    );
+    console.log(
+      `Webhook response headers:`,
+      Object.fromEntries(response.headers.entries())
+    );
 
     if (!response.ok) {
       console.error(`Webhook error: ${response.status} ${response.statusText}`);
@@ -69,8 +82,29 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    const data = await response.json();
-    console.log("Webhook response received successfully");
+    // Check if response has content
+    const responseText = await response.text();
+    console.log(`Webhook response body: "${responseText}"`);
+
+    let data;
+    if (responseText.trim()) {
+      try {
+        data = JSON.parse(responseText);
+        console.log("Webhook response parsed successfully");
+      } catch (parseError) {
+        console.error("Failed to parse webhook response as JSON:", parseError);
+        return res.status(500).json({
+          error: "Webhook returned invalid JSON",
+          details:
+            process.env.NODE_ENV === "development"
+              ? responseText
+              : "Invalid response format",
+        });
+      }
+    } else {
+      console.log("Webhook returned empty response");
+      data = { message: "Webhook processed successfully" };
+    }
 
     res.json(data);
   } catch (err) {
